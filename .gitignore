@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# venv
+flask-env/
+
 # Distribution / packaging
 .Python
 env/

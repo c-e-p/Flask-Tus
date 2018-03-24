@@ -90,11 +90,12 @@ class tus_manager(object):
 
             # process upload metadata
             metadata = {}
-            for kv in request.headers.get("Upload-Metadata", None).split(","):
-                (key, value) = kv.split(" ")
-                metadata[key] = base64.b64decode(value)
-
-            if os.path.lexists( os.path.join( self.upload_folder, metadata.get("filename") )) and self.file_overwrite is False:
+            if request.headers.get("Upload-Metadata", None) is not None:
+                for kv in request.headers.get("Upload-Metadata", None).split(","):
+                    (key, value) = kv.split(" ")
+                    metadata[key] = base64.b64decode(value)
+            print(metadata.get("filename"))
+            if os.path.lexists( os.path.join( self.upload_folder, str(metadata.get("filename")) )) and self.file_overwrite is False:
                 response.status_code = 409
                 return response
 
@@ -111,7 +112,7 @@ class tus_manager(object):
             try:
                 f = open( os.path.join( self.upload_folder, resource_id ), "wb")
                 f.seek( file_size - 1)
-                f.write("\0")
+                f.write(str.encode('\0'))
                 f.close()
             except IOError as e:
                 self.app.logger.error("Unable to create file: {}".format(e))
@@ -175,9 +176,9 @@ class tus_manager(object):
             chunk_size = int(request.headers.get("Content-Length", 0))
             file_size = int( self.redis_connection.get( "file-uploads/{}/file_size".format( resource_id )) )
 
-            if request.headers.get("Upload-Offset") != self.redis_connection.get( "file-uploads/{}/offset".format( resource_id )): # check to make sure we're in sync
-                response.status_code = 409 # HTTP 409 Conflict
-                return response
+            #if request.headers.get("Upload-Offset") != self.redis_connection.get( "file-uploads/{}/offset".format( resource_id )): # check to make sure we're in sync
+            #    response.status_code = 409 # HTTP 409 Conflict
+            #    return response
 
             try:
                 f = open( upload_file_path, "r+b")
