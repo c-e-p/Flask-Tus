@@ -10,9 +10,9 @@ from setuptools import setup
 
 
 setup(
-    name='Flask-Tus',
-    version='0.6.1',
-    url='http://github.com/matthoskins1980/Flask-Tus/',
+    name='Flask-Tus-Fork',
+    version='0.7.0',
+    url='http://github.com/c-e-p/Flask-Tus',
     license='MIT',
     author='Matt Hoskins',
     author_email='matt.hoski+flask-tus@gmail.com',
