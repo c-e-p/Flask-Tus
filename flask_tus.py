@@ -138,14 +138,14 @@ class tus_manager(object):
             #    return response
 
         if request.method == 'DELETE':
-            os.unlink( upload_file_path )
+            self.file_storage.delete_file()
 
             response.status_code = 204
             return respose
         
         if request.method == 'PATCH':
             filename = self.upload_info['upload_filename']
-            if filename is None or os.path.lexists( upload_file_path ) is False:
+            if filename is None or self.file_storage.resource_exists() is False:
                 self.app.logger.info( "PATCH sent for resource_id that does not exist. {}".format( resource_id))
                 response.status_code = 410
                 return response
@@ -155,31 +155,20 @@ class tus_manager(object):
             file_size = self.upload_info['upload_length']
 
             if int(request.headers.get("Upload-Offset")) != int(self.upload_info['upload_offset']): # check to make sure we're in sync
-                print(request.headers.get("Upload-Offset"))
-                print(self.upload_info['upload_offset'])
                 response.status_code = 409 # HTTP 409 Conflict
                 return response
 
-            try:
-                f = open( upload_file_path, "r+b")
-            except IOError:
-                f = open( upload_file_path, "wb")
-            finally:
-                f.seek( file_offset )
-                f.write(request.data)
-                f.close()
+            self.file_storage.upload_chunk(file_offset, request.data)
 
             self.upload_info['upload_offset'] = self.upload_info['upload_offset'] + chunk_size
             response.headers['Upload-Offset'] = self.upload_info['upload_offset']
             response.headers['Tus-Temp-Filename'] = resource_id
 
             if file_size == self.upload_info['upload_offset']: # file transfer complete, rename from resource id to actual filename
-                if self.upload_file_handler_cb is None:
-                    os.rename( upload_file_path, os.path.join( self.upload_folder, filename ))
-                else:
-                    filename = self.upload_file_handler_cb( upload_file_path, filename ) 
-
-                if self.upload_finish_cb is not None:
-                    self.upload_finish_cb()
+                try:
+                    self.file_storage.finish_upload(filename)
+                except:
+                    response.status_code = 409 # HTTP 409 Conflict
+                    return response
 
             return response

@@ -21,4 +21,22 @@ class FileStorage:
 
 	def get_upload_path(self):
 		return os.path.join( self.upload_folder, str(self.resource_id) )
-	
+	def delete_file(self):
+		os.unlink( self.get_upload_path() )
+
+	def resource_exists(self):
+		return os.path.lexists( self.get_upload_path() )
+
+	def upload_chunk(self, offset, data):
+		upload_file_path = self.get_upload_path()
+		try:
+			f = open( upload_file_path, "r+b")
+		except IOError:
+			f = open( upload_file_path, "wb")
+		finally:
+			f.seek( offset )
+			f.write(data)
+			f.close()
+
+	def finish_upload(self, filename):
+		os.rename( self.get_upload_path(), os.path.join( self.upload_folder, filename.decode()))
