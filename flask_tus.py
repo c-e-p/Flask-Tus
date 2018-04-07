@@ -1,12 +1,9 @@
 from flask import request, jsonify, make_response, current_app
 import base64
 import os
-import redis
 import uuid
+from UploadInfo import UploadInfo
 
-# Find the stack on which we want to store the database connection.
-# Starting with Flask 0.9, the _app_ctx_stack is the correct one,
-# before that we need to use the _request_ctx_stack.
 try:
     from flask import _app_ctx_stack as stack
 except ImportError:
@@ -16,6 +13,7 @@ class tus_manager(object):
 
     def __init__(self, app=None, upload_url='/file-upload', upload_folder='uploads/', overwrite=True, upload_finish_cb=None):
         self.app = app
+        self.upload_info = {}
         if app is not None:
             self.init_app(app, upload_url, upload_folder, overwrite=overwrite, upload_finish_cb=upload_finish_cb)
 
@@ -39,18 +37,6 @@ class tus_manager(object):
     def upload_file_handler( self, callback ):
         self.upload_file_handler_cb = callback
         return callback
-
-    # handle redis server connection
-    def redis_connect(self):
-        return redis.Redis()
-
-    @property
-    def redis_connection(self):
-        ctx = stack.top
-        if ctx is not None:
-            if not hasattr(ctx, 'tus_redis'):
-                ctx.tus_redis = self.redis_connect()
-            return ctx.tus_redis
 
     def tus_file_upload(self):
 
@@ -102,12 +88,8 @@ class tus_manager(object):
             file_size = int(request.headers.get("Upload-Length", "0"))
             resource_id = str(uuid.uuid4())
 
-            p = self.redis_connection.pipeline()
-            p.setex("file-uploads/{}/filename".format(resource_id), "{}".format(metadata.get("filename")), 3600)
-            p.setex("file-uploads/{}/file_size".format(resource_id), file_size, 3600)
-            p.setex("file-uploads/{}/offset".format(resource_id), 0, 3600)
-            p.setex("file-uploads/{}/upload-metadata".format(resource_id), request.headers.get("Upload-Metadata"), 3600)
-            p.execute()
+            info = UploadInfo(file_size, 0, request.headers.get("Upload-Metadata"), metadata.get("filename"))
+            self.upload_info = info.info
 
             try:
                 f = open( os.path.join( self.upload_folder, resource_id ), "wb")
@@ -132,15 +114,16 @@ class tus_manager(object):
         return response
 
     def tus_file_upload_chunk(self, resource_id):
+        print(request)
         response = make_response("", 204)
         response.headers['Tus-Resumable'] = self.tus_api_version
         response.headers['Tus-Version'] = self.tus_api_version_supported
 
-        offset = self.redis_connection.get("file-uploads/{}/offset".format( resource_id ))
+        offset = request.headers.get('Upload-Offset')
         upload_file_path = os.path.join( self.upload_folder, resource_id )
 
         if request.method == 'HEAD':
-            offset = self.redis_connection.get("file-uploads/{}/offset".format( resource_id ))
+            offset = None
             if offset is None:
                 response.status_code = 404
                 return response
@@ -155,18 +138,11 @@ class tus_manager(object):
         if request.method == 'DELETE':
             os.unlink( upload_file_path )
 
-            p = self.redis_connection.pipeline()
-            p.delete("file-uploads/{}/filename".format(resource_id))
-            p.delete("file-uploads/{}/file_size".format(resource_id))
-            p.delete("file-uploads/{}/offset".format(resource_id))
-            p.delete("file-uploads/{}/upload-metadata".format(resource_id))
-            p.execute()
-
             response.status_code = 204
             return respose
         
         if request.method == 'PATCH':
-            filename = self.redis_connection.get("file-uploads/{}/filename".format( resource_id ))
+            filename = self.upload_info['upload_filename']
             if filename is None or os.path.lexists( upload_file_path ) is False:
                 self.app.logger.info( "PATCH sent for resource_id that does not exist. {}".format( resource_id))
                 response.status_code = 410
@@ -174,11 +150,13 @@ class tus_manager(object):
 
             file_offset = int(request.headers.get("Upload-Offset", 0))
             chunk_size = int(request.headers.get("Content-Length", 0))
-            file_size = int( self.redis_connection.get( "file-uploads/{}/file_size".format( resource_id )) )
+            file_size = self.upload_info['upload_length']
 
-            #if request.headers.get("Upload-Offset") != self.redis_connection.get( "file-uploads/{}/offset".format( resource_id )): # check to make sure we're in sync
-            #    response.status_code = 409 # HTTP 409 Conflict
-            #    return response
+            if int(request.headers.get("Upload-Offset")) != int(self.upload_info['upload_offset']): # check to make sure we're in sync
+                print(request.headers.get("Upload-Offset"))
+                print(self.upload_info['upload_offset'])
+                response.status_code = 409 # HTTP 409 Conflict
+                return response
 
             try:
                 f = open( upload_file_path, "r+b")
@@ -189,22 +167,15 @@ class tus_manager(object):
                 f.write(request.data)
                 f.close()
 
-            new_offset = self.redis_connection.incrby( "file-uploads/{}/offset".format( resource_id ), chunk_size)
-            response.headers['Upload-Offset'] = new_offset
+            self.upload_info['upload_offset'] = self.upload_info['upload_offset'] + chunk_size
+            response.headers['Upload-Offset'] = self.upload_info['upload_offset']
             response.headers['Tus-Temp-Filename'] = resource_id
 
-            if file_size == new_offset: # file transfer complete, rename from resource id to actual filename
+            if file_size == self.upload_info['upload_offset']: # file transfer complete, rename from resource id to actual filename
                 if self.upload_file_handler_cb is None:
                     os.rename( upload_file_path, os.path.join( self.upload_folder, filename ))
                 else:
                     filename = self.upload_file_handler_cb( upload_file_path, filename ) 
-
-                p = self.redis_connection.pipeline()
-                p.delete("file-uploads/{}/filename".format(resource_id))
-                p.delete("file-uploads/{}/file_size".format(resource_id))
-                p.delete("file-uploads/{}/offset".format(resource_id))
-                p.delete("file-uploads/{}/upload-metadata".format(resource_id))
-                p.execute()
 
                 if self.upload_finish_cb is not None:
                     self.upload_finish_cb()
