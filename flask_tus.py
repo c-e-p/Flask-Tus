@@ -2,7 +2,8 @@ from flask import request, jsonify, make_response, current_app
 import base64
 import os
 import uuid
-from UploadInfo import UploadInfo
+from upload_info import UploadInfo
+from file_storage import FileStorage
 
 try:
     from flask import _app_ctx_stack as stack
@@ -29,6 +30,8 @@ class tus_manager(object):
         self.upload_finish_cb = upload_finish_cb
         self.upload_file_handler_cb = None
 
+        self.file_storage = FileStorage(upload_folder)
+
         # register the two file upload endpoints
         app.add_url_rule(self.upload_url, 'file-upload', self.tus_file_upload, methods=['OPTIONS', 'POST', 'GET'])
         app.add_url_rule('{}/<resource_id>'.format( self.upload_url ), 'file-upload-chunk', self.tus_file_upload_chunk, methods=['HEAD', 'PATCH', 'DELETE'])
@@ -51,8 +54,7 @@ class tus_manager(object):
             if metadata.get("filename", None) is None:
                 return make_response("metadata filename is not set", 404)
 
-            (filename_name, extension) = os.path.splitext( metadata.get("filename"))
-            if filename_name.upper() in [os.path.splitext(f)[0].upper() for f in os.listdir( os.path.dirname( self.upload_folder ))]:
+            if self.file_storage.file_exists(metadata.get("filename")):
                 response.headers['Tus-File-Name'] = metadata.get("filename")
                 response.headers['Tus-File-Exists'] = True
             else:
@@ -80,8 +82,7 @@ class tus_manager(object):
                 for kv in request.headers.get("Upload-Metadata", None).split(","):
                     (key, value) = kv.split(" ")
                     metadata[key] = base64.b64decode(value)
-            print(metadata.get("filename"))
-            if os.path.lexists( os.path.join( self.upload_folder, str(metadata.get("filename")) )) and self.file_overwrite is False:
+            if self.file_storage.file_is_uploaded( str(metadata.get("filename")) ) and self.file_overwrite is False:
                 response.status_code = 409
                 return response
 
@@ -92,11 +93,8 @@ class tus_manager(object):
             self.upload_info = info.info
 
             try:
-                f = open( os.path.join( self.upload_folder, resource_id ), "wb")
-                f.seek( file_size - 1)
-                f.write(str.encode('\0'))
-                f.close()
-            except IOError as e:
+                self.file_storage.upload_file(resource_id, file_size)
+            except Exception as e:
                 self.app.logger.error("Unable to create file: {}".format(e))
                 response.status_code = 500
                 return response
@@ -120,20 +118,24 @@ class tus_manager(object):
         response.headers['Tus-Version'] = self.tus_api_version_supported
 
         offset = request.headers.get('Upload-Offset')
-        upload_file_path = os.path.join( self.upload_folder, resource_id )
+        upload_file_path = self.file_storage.get_upload_path()
 
         if request.method == 'HEAD':
-            offset = None
-            if offset is None:
-                response.status_code = 404
-                return response
+            response.status_code = 404
+            response.headers['Upload-Offset'] = offset
+            response.headers['Cache-Control'] = 'no-store'
+            return response
+            #offset = None
+            #if offset is None:
+            #    response.status_code = 404
+            #    return response
 
-            else:
-                response.status_code = 200
-                response.headers['Upload-Offset'] = offset
-                response.headers['Cache-Control'] = 'no-store'
+            #else:
+            #    response.status_code = 200
+            #    response.headers['Upload-Offset'] = offset
+            #    response.headers['Cache-Control'] = 'no-store'
 
-                return response
+            #    return response
 
         if request.method == 'DELETE':
             os.unlink( upload_file_path )
