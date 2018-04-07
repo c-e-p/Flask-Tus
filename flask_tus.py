@@ -3,7 +3,6 @@ import base64
 import os
 import uuid
 from upload_info import UploadInfo
-from file_storage import FileStorage
 
 try:
     from flask import _app_ctx_stack as stack
@@ -12,9 +11,11 @@ except ImportError:
 
 class tus_manager(object):
 
-    def __init__(self, app=None, upload_url='/file-upload', upload_folder='uploads/', overwrite=True, upload_finish_cb=None):
+    def __init__(self, app=None, upload_url='/file-upload', upload_folder='uploads/', overwrite=True, upload_finish_cb=None,
+        storage=None):
         self.app = app
         self.upload_info = {}
+        self.storage = storage
         if app is not None:
             self.init_app(app, upload_url, upload_folder, overwrite=overwrite, upload_finish_cb=upload_finish_cb)
 
@@ -29,8 +30,6 @@ class tus_manager(object):
         self.file_overwrite = overwrite
         self.upload_finish_cb = upload_finish_cb
         self.upload_file_handler_cb = None
-
-        self.file_storage = FileStorage(upload_folder)
 
         # register the two file upload endpoints
         app.add_url_rule(self.upload_url, 'file-upload', self.tus_file_upload, methods=['OPTIONS', 'POST', 'GET'])
@@ -54,7 +53,7 @@ class tus_manager(object):
             if metadata.get("filename", None) is None:
                 return make_response("metadata filename is not set", 404)
 
-            if self.file_storage.file_exists(metadata.get("filename")):
+            if self.storage.file_exists(metadata.get("filename")):
                 response.headers['Tus-File-Name'] = metadata.get("filename")
                 response.headers['Tus-File-Exists'] = True
             else:
@@ -82,7 +81,7 @@ class tus_manager(object):
                 for kv in request.headers.get("Upload-Metadata", None).split(","):
                     (key, value) = kv.split(" ")
                     metadata[key] = base64.b64decode(value)
-            if self.file_storage.file_is_uploaded( str(metadata.get("filename")) ) and self.file_overwrite is False:
+            if self.storage.file_is_uploaded( str(metadata.get("filename")) ) and self.file_overwrite is False:
                 response.status_code = 409
                 return response
 
@@ -93,7 +92,7 @@ class tus_manager(object):
             self.upload_info = info.info
 
             try:
-                self.file_storage.upload_file(resource_id, file_size)
+                self.storage.upload_file(resource_id, file_size)
             except Exception as e:
                 self.app.logger.error("Unable to create file: {}".format(e))
                 response.status_code = 500
@@ -118,7 +117,7 @@ class tus_manager(object):
         response.headers['Tus-Version'] = self.tus_api_version_supported
 
         offset = request.headers.get('Upload-Offset')
-        upload_file_path = self.file_storage.get_upload_path()
+        upload_file_path = self.storage.get_upload_path()
 
         if request.method == 'HEAD':
             response.status_code = 404
@@ -138,14 +137,14 @@ class tus_manager(object):
             #    return response
 
         if request.method == 'DELETE':
-            self.file_storage.delete_file()
+            self.storage.delete_file()
 
             response.status_code = 204
             return respose
         
         if request.method == 'PATCH':
             filename = self.upload_info['upload_filename']
-            if filename is None or self.file_storage.resource_exists() is False:
+            if filename is None or self.storage.resource_exists() is False:
                 self.app.logger.info( "PATCH sent for resource_id that does not exist. {}".format( resource_id))
                 response.status_code = 410
                 return response
@@ -158,7 +157,7 @@ class tus_manager(object):
                 response.status_code = 409 # HTTP 409 Conflict
                 return response
 
-            self.file_storage.upload_chunk(file_offset, request.data)
+            self.storage.upload_chunk(file_offset, request.data)
 
             self.upload_info['upload_offset'] = self.upload_info['upload_offset'] + chunk_size
             response.headers['Upload-Offset'] = self.upload_info['upload_offset']
@@ -166,7 +165,7 @@ class tus_manager(object):
 
             if file_size == self.upload_info['upload_offset']: # file transfer complete, rename from resource id to actual filename
                 try:
-                    self.file_storage.finish_upload(filename)
+                    self.storage.finish_upload(filename)
                 except:
                     response.status_code = 409 # HTTP 409 Conflict
                     return response
