@@ -143,10 +143,10 @@ class tus_manager(object):
         
         if request.method == 'PATCH':
             filename = self.upload_info['upload_filename']
-            if filename is None or self.storage.resource_exists() is False:
-                self.app.logger.info( "PATCH sent for resource_id that does not exist. {}".format( resource_id))
-                response.status_code = 410
-                return response
+            #if filename is None or self.storage.resource_exists() is False:
+            #    self.app.logger.info( "PATCH sent for resource_id that does not exist. {}".format( resource_id))
+            #    response.status_code = 410
+            #    return response
 
             file_offset = int(request.headers.get("Upload-Offset", 0))
             chunk_size = int(request.headers.get("Content-Length", 0))
