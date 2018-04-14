@@ -40,4 +40,6 @@ class FileStorage:
 			f.close()
 
 	def finish_upload(self, filename):
-		os.rename( self.get_upload_path(), os.path.join( self.upload_folder, filename))
+		path = os.path.join( self.upload_folder, filename)
+		os.rename( self.get_upload_path(), path)
+		return path

@@ -71,4 +71,5 @@ class S3Storage:
 		    MultipartUpload=self.upload_info['parts'],
 		    UploadId=self.upload_info['s3_response']['UploadId']
 		)
-		return response
+		file_url = '%s/%s/%s' % (self.client.meta.endpoint_url, 'ourchive-test-bucket', self.upload_info['upload_filename'])
+		return file_url
