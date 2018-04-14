@@ -34,17 +34,17 @@ class S3Storage:
 		response = self.client.create_multipart_upload(
 		    ACL='public-read',
 		    Bucket='ourchive-test-bucket',
-		    ContentType=self.upload_info.info['upload_metadata']["content_type"],
-		    Key=self.upload_info.info['upload_filename']
+		    ContentType=self.upload_info['upload_metadata']["content_type"],
+		    Key=self.upload_info['upload_filename']
 		)
-		self.upload_info.info['s3_response'] = response
-		self.upload_info.info['part_number'] = 1
-		self.upload_info.info['parts'] = {'Parts' :[]}
+		self.upload_info['s3_response'] = response
+		self.upload_info['part_number'] = 1
+		self.upload_info['parts'] = {'Parts' :[]}
 
 	def delete_file(self):
 		response = self.client.delete_object(
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info.info['upload_filename']
+		    Key=self.upload_info['upload_filename']
 		)
 		return response
 
@@ -52,22 +52,22 @@ class S3Storage:
 		response = self.client.upload_part(
 		    Body=data,
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info.info['upload_filename'],
-		    PartNumber=self.upload_info.info['part_number'],
-		    UploadId=self.upload_info.info['s3_response']['UploadId']
+		    Key=self.upload_info['upload_filename'],
+		    PartNumber=self.upload_info['part_number'],
+		    UploadId=self.upload_info['s3_response']['UploadId']
 		)		
 		new_part = {}
 		new_part['ETag'] = response['ETag']
-		new_part['PartNumber'] = self.upload_info.info['part_number']
-		self.upload_info.info['parts']['Parts'].append(new_part)
-		self.upload_info.info['part_number'] += 1
+		new_part['PartNumber'] = self.upload_info['part_number']
+		self.upload_info['parts']['Parts'].append(new_part)
+		self.upload_info['part_number'] += 1
 		return response
 
 	def finish_upload(self, filename):
 		response = self.client.complete_multipart_upload(
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info.info['upload_filename'],
-		    MultipartUpload=self.upload_info.info['parts'],
-		    UploadId=self.upload_info.info['s3_response']['UploadId']
+		    Key=self.upload_info['upload_filename'],
+		    MultipartUpload=self.upload_info['parts'],
+		    UploadId=self.upload_info['s3_response']['UploadId']
 		)
 		return response
