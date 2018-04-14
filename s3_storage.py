@@ -35,7 +35,7 @@ class S3Storage:
 		response = self.client.create_multipart_upload(
 		    ACL='public-read',
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info['resource_id'],
+		    Key=self.upload_info['resource_id'] + '-' + self.upload_info['upload_filename'],
 		    Metadata={
 		        'filename': self.upload_info['upload_filename']
 		    }
@@ -56,7 +56,7 @@ class S3Storage:
 		response = self.client.upload_part(
 		    Body=data,
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info['resource_id'],
+		    Key=self.upload_info['resource_id'] + '-' + self.upload_info['upload_filename'],
 		    PartNumber=self.upload_info['part_number'],
 		    UploadId=self.upload_info['s3_response']['UploadId']
 		)		
@@ -70,7 +70,7 @@ class S3Storage:
 	def finish_upload(self, filename):
 		response = self.client.complete_multipart_upload(
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info['resource_id'],
+		    Key=self.upload_info['resource_id'] + '-' + self.upload_info['upload_filename'],
 		    MultipartUpload=self.upload_info['parts'],
 		    UploadId=self.upload_info['s3_response']['UploadId']
 		)
