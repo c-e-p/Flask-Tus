@@ -92,6 +92,7 @@ class tus_manager(object):
             self.upload_info = info.info
 
             try:
+                self.storage.upload_info = self.upload_info
                 self.storage.upload_file(resource_id, file_size)
             except Exception as e:
                 self.app.logger.error("Unable to create file: {}".format(e))
@@ -111,13 +112,11 @@ class tus_manager(object):
         return response
 
     def tus_file_upload_chunk(self, resource_id):
-        print(request)
         response = make_response("", 204)
         response.headers['Tus-Resumable'] = self.tus_api_version
         response.headers['Tus-Version'] = self.tus_api_version_supported
 
         offset = request.headers.get('Upload-Offset')
-        upload_file_path = self.storage.get_upload_path()
 
         if request.method == 'HEAD':
             response.status_code = 404

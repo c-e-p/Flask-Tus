@@ -5,40 +5,68 @@ class S3Storage:
 	def __init__(self, upload_folder):
 		self.upload_folder = upload_folder
 		self.resource_id = 0
-		s3 = boto3.resource('s3')
+		self.parts = []
+		self.s3 = boto3.resource('s3')
 
 	def file_exists(self, filename):		
 		try:
-			s3.Object(self.upload_folder, filename).load()    		
+			self.filename = filename
+			self.s3.Object(self.upload_folder, filename).load()  
+			return True  		
 		except botocore.exceptions.ClientError as e:
-    		if e.response['Error']['Code'] == "404":
-        		return False
-    		else:
-        		raise
+			if e.response['Error']['Code'] == "404":
+				return False
+			else:
+				raise
 
 	def file_is_uploaded(self, filename):
 		try:
-			s3.Object(self.upload_folder, filename).load()    		
+			self.s3.Object(self.upload_folder, filename).load()
+			return True 		
 		except botocore.exceptions.ClientError as e:
-    		if e.response['Error']['Code'] == "404":
-        		return False
-    		else:
-        		raise
+			if e.response['Error']['Code'] == "404":
+				return False
+			else:
+				raise
 
 	def upload_file(self, resource_id, file_size):
-		return "not implemented"
-
-	def get_upload_path(self):
-		return "not implemented"
+		response = self.s3.create_multipart_upload(
+		    ACL='public-read',
+		    Bucket='ourchive-test-bucket',
+		    ContentType=self.upload_info.info['upload_metadata']["content_type"],
+		    Key=self.upload_info.info['upload_filename']
+		)
+		self.upload_info.info['s3_response'] = response
+		self.upload_info.info['part_number'] = 1
+		self.upload_info.info['parts'] = {'Parts' :[]}
 
 	def delete_file(self):
-		return "not implemented"
-
-	def resource_exists(self):
-		return False
+		response = self.s3.delete_object(
+		    Bucket='ourchive-test-bucket',
+		    Key=self.upload_info.info['upload_filename']
+		)
+		return response
 
 	def upload_chunk(self, offset, data):
-		return "not implemented"
+		response = self.s3.upload_part(
+		    Body=data,
+		    Bucket='ourchive-test-bucket',
+		    Key=self.upload_info.info['upload_filename'],
+		    PartNumber=self.upload_info.info['part_number'],
+		    UploadId=self.upload_info.info['s3_response']['UploadId']
+		)		
+		new_part = {}
+		new_part['ETag'] = response['ETag']
+		new_part['PartNumber'] = self.upload_info.info['part_number']
+		self.upload_info.info['parts']['Parts'].append(new_part)
+		self.upload_info.info['part_number'] += 1
+		return response
 
 	def finish_upload(self, filename):
-		return "not implemented"
+		response = self.s3.complete_multipart_upload(
+		    Bucket='ourchive-test-bucket',
+		    Key=self.upload_info.info['upload_filename'],
+		    MultipartUpload=self.upload_info.info['parts'],
+		    UploadId=self.upload_info.info['s3_response']['UploadId']
+		)
+		return response

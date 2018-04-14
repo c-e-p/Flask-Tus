@@ -14,17 +14,16 @@ setup(
     version='0.7.0',
     url='http://github.com/c-e-p/Flask-Tus',
     license='MIT',
-    author='Matt Hoskins',
-    author_email='matt.hoski+flask-tus@gmail.com',
-    description='TUS protocol implementation',
+    author='Elena Palmer',
+    author_email='c.elena.palmer@gmail.com',
+    description='Fork of Matt Hoskins\' TUS protocol implementation',
     long_description=__doc__,
-    py_modules=['flask_tus'],
+    py_modules=['flask_tus_fork'],
     zip_safe=False,
     include_package_data=True,
     platforms='any',
     install_requires=[
-        'Flask',
-		'Redis'
+        'Flask'
     ],
     classifiers=[
         'Environment :: Web Environment',
