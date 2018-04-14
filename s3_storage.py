@@ -31,11 +31,14 @@ class S3Storage:
 				raise
 
 	def upload_file(self, resource_id, file_size):
-		print(self.upload_info)
+		self.upload_info['resource_id'] = resource_id
 		response = self.client.create_multipart_upload(
 		    ACL='public-read',
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info['upload_filename']
+		    Key=self.upload_info['resource_id'],
+		    Metadata={
+		        'filename': self.upload_info['upload_filename']
+		    }
 		)
 		self.upload_info['s3_response'] = response
 		self.upload_info['part_number'] = 1
@@ -45,7 +48,7 @@ class S3Storage:
 	def delete_file(self):
 		response = self.client.delete_object(
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info['upload_filename']
+		    Key=self.upload_info['resource_id']
 		)
 		return response
 
@@ -53,7 +56,7 @@ class S3Storage:
 		response = self.client.upload_part(
 		    Body=data,
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info['upload_filename'],
+		    Key=self.upload_info['resource_id'],
 		    PartNumber=self.upload_info['part_number'],
 		    UploadId=self.upload_info['s3_response']['UploadId']
 		)		
@@ -67,9 +70,8 @@ class S3Storage:
 	def finish_upload(self, filename):
 		response = self.client.complete_multipart_upload(
 		    Bucket='ourchive-test-bucket',
-		    Key=self.upload_info['upload_filename'],
+		    Key=self.upload_info['resource_id'],
 		    MultipartUpload=self.upload_info['parts'],
 		    UploadId=self.upload_info['s3_response']['UploadId']
 		)
-		file_url = '%s/%s/%s' % (self.client.meta.endpoint_url, 'ourchive-test-bucket', self.upload_info['upload_filename'])
-		return file_url
+		return response
