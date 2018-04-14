@@ -21,6 +21,7 @@ class FileStorage:
 
 	def get_upload_path(self):
 		return os.path.join( self.upload_folder, str(self.resource_id) )
+
 	def delete_file(self):
 		os.unlink( self.get_upload_path() )
 
@@ -39,4 +40,4 @@ class FileStorage:
 			f.close()
 
 	def finish_upload(self, filename):
-		os.rename( self.get_upload_path(), os.path.join( self.upload_folder, filename.decode()))
+		os.rename( self.get_upload_path(), os.path.join( self.upload_folder, filename))

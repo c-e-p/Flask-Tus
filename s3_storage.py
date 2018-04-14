@@ -31,15 +31,16 @@ class S3Storage:
 				raise
 
 	def upload_file(self, resource_id, file_size):
+		print(self.upload_info)
 		response = self.client.create_multipart_upload(
 		    ACL='public-read',
 		    Bucket='ourchive-test-bucket',
-		    ContentType=self.upload_info['upload_metadata']["content_type"],
 		    Key=self.upload_info['upload_filename']
 		)
 		self.upload_info['s3_response'] = response
 		self.upload_info['part_number'] = 1
 		self.upload_info['parts'] = {'Parts' :[]}
+		print("created upload")
 
 	def delete_file(self):
 		response = self.client.delete_object(
