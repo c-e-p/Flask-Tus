@@ -7,6 +7,7 @@ class S3Storage:
 		self.resource_id = 0
 		self.parts = []
 		self.s3 = boto3.resource('s3')
+		self.client = boto3.client('s3')
 
 	def file_exists(self, filename):		
 		try:
@@ -30,7 +31,7 @@ class S3Storage:
 				raise
 
 	def upload_file(self, resource_id, file_size):
-		response = self.s3.create_multipart_upload(
+		response = self.client.create_multipart_upload(
 		    ACL='public-read',
 		    Bucket='ourchive-test-bucket',
 		    ContentType=self.upload_info.info['upload_metadata']["content_type"],
@@ -41,14 +42,14 @@ class S3Storage:
 		self.upload_info.info['parts'] = {'Parts' :[]}
 
 	def delete_file(self):
-		response = self.s3.delete_object(
+		response = self.client.delete_object(
 		    Bucket='ourchive-test-bucket',
 		    Key=self.upload_info.info['upload_filename']
 		)
 		return response
 
 	def upload_chunk(self, offset, data):
-		response = self.s3.upload_part(
+		response = self.client.upload_part(
 		    Body=data,
 		    Bucket='ourchive-test-bucket',
 		    Key=self.upload_info.info['upload_filename'],
@@ -63,7 +64,7 @@ class S3Storage:
 		return response
 
 	def finish_upload(self, filename):
-		response = self.s3.complete_multipart_upload(
+		response = self.client.complete_multipart_upload(
 		    Bucket='ourchive-test-bucket',
 		    Key=self.upload_info.info['upload_filename'],
 		    MultipartUpload=self.upload_info.info['parts'],
