@@ -88,7 +88,7 @@ class tus_manager(object):
             file_size = int(request.headers.get("Upload-Length", "0"))
             resource_id = str(uuid.uuid4())
 
-            info = UploadInfo(file_size, 0, request.headers.get("Upload-Metadata"), metadata.get("filename"))
+            info = UploadInfo(file_size, 0, request.headers.get("Upload-Metadata"), metadata.get("filename").decode())
             self.upload_info = info.info
 
             try:
