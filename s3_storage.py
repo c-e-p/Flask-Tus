@@ -34,7 +34,7 @@ class S3Storage:
 		self.upload_info['resource_id'] = resource_id
 		response = self.client.create_multipart_upload(
 		    ACL='public-read',
-		    Bucket='ourchive-test-bucket',
+		    Bucket=self.upload_folder,
 		    Key=self.upload_info['resource_id'] + '-' + self.upload_info['upload_filename'],
 		    Metadata={
 		        'filename': self.upload_info['upload_filename']
@@ -47,7 +47,7 @@ class S3Storage:
 
 	def delete_file(self):
 		response = self.client.delete_object(
-		    Bucket='ourchive-test-bucket',
+		    Bucket=self.upload_folder,
 		    Key=self.upload_info['resource_id']
 		)
 		return response
@@ -55,7 +55,7 @@ class S3Storage:
 	def upload_chunk(self, offset, data):
 		response = self.client.upload_part(
 		    Body=data,
-		    Bucket='ourchive-test-bucket',
+		    Bucket=self.upload_folder,
 		    Key=self.upload_info['resource_id'] + '-' + self.upload_info['upload_filename'],
 		    PartNumber=self.upload_info['part_number'],
 		    UploadId=self.upload_info['s3_response']['UploadId']
@@ -69,7 +69,7 @@ class S3Storage:
 
 	def finish_upload(self, filename):
 		response = self.client.complete_multipart_upload(
-		    Bucket='ourchive-test-bucket',
+		    Bucket=self.upload_folder,
 		    Key=self.upload_info['resource_id'] + '-' + self.upload_info['upload_filename'],
 		    MultipartUpload=self.upload_info['parts'],
 		    UploadId=self.upload_info['s3_response']['UploadId']
