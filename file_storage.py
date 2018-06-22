@@ -1,4 +1,5 @@
 import os
+import file_utils
 
 class FileStorage:
 	def __init__(self, upload_folder):
@@ -42,4 +43,6 @@ class FileStorage:
 	def finish_upload(self, filename):
 		path = os.path.join( self.upload_folder, filename)
 		os.rename( self.get_upload_path(), path)
+		if not file_utils.file_is_image(path) and not file_utils.file_is_audio(path):
+			raise TypeError('File is not of allowed types.')
 		return path
