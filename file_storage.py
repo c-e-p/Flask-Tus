@@ -41,7 +41,7 @@ class FileStorage:
 			f.close()
 
 	def finish_upload(self, filename):
-		path = os.path.join( self.upload_folder, filename)
+		path = os.path.join( self.upload_folder, self.resource_id + '-' + filename)
 		os.rename( self.get_upload_path(), path)
 		if not file_utils.file_is_image(path) and not file_utils.file_is_audio(path):
 			raise TypeError('File is not of allowed types.')
