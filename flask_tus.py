@@ -152,9 +152,9 @@ class tus_manager(object):
             chunk_size = int(request.headers.get("Content-Length", 0))
             file_size = self.upload_info['upload_length']
 
-            if int(request.headers.get("Upload-Offset")) != int(self.upload_info['upload_offset']): # check to make sure we're in sync
-                response.status_code = 409 # HTTP 409 Conflict
-                return response
+            #if int(request.headers.get("Upload-Offset")) != int(self.upload_info['upload_offset']): # check to make sure we're in sync
+            #    response.status_code = 409 # HTTP 409 Conflict
+            #    return response
 
             self.storage.upload_chunk(file_offset, request.data)
 
@@ -164,8 +164,7 @@ class tus_manager(object):
 
             if file_size == self.upload_info['upload_offset']: # file transfer complete, rename from resource id to actual filename
                 try:
-                    result = self.storage.finish_upload(filename)
-                    print(result)
+                    self.storage.finish_upload(filename)
                 except:
                     response.status_code = 409 # HTTP 409 Conflict
                     return response
