@@ -164,7 +164,7 @@ class tus_manager(object):
 
             if file_size == self.upload_info['upload_offset']: # file transfer complete, rename from resource id to actual filename
                 try:
-                    self.storage.finish_upload(filename)
+                    response = self.storage.finish_upload(filename)
                 except:
                     response.status_code = 409 # HTTP 409 Conflict
                     return response
